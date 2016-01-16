@@ -468,7 +468,7 @@ StravistiX.prototype = {
             action: 'openedActivityType',
             name: activityType
         };
-        
+
         _spTrack('send', 'event', updatedToEvent.categorie, updatedToEvent.action, updatedToEvent.name);
     },
 
@@ -491,61 +491,67 @@ StravistiX.prototype = {
 
         this.activityProcessor_.setActivityType(activityType);
 
-        var view = Strava.Labs.Activities.SegmentLeaderboardView; // Strava.Labs.Activities.SegmentEffortDetailView
-
-        if (activityType === ('Run' || 'Hike' || 'Walk')) {
-            view = Strava.Labs.Activities.SegmentEffortDetailView;
-        }
-
-        if (!view) {
-            return;
-        }
-
-        var functionRender = view.prototype.render;
+        var start = new Date().getTime();
 
         var self = this;
 
-        view.prototype.render = function() {
+        // view.prototype.render = function() {
+        //     var r = functionRender.apply(this, Array.prototype.slice.call(arguments));
 
-            var r = functionRender.apply(this, Array.prototype.slice.call(arguments));
+        $('[data-segment-effort-id]').click(function() {
 
-            var basicInfos = {
-                activityName: self.vacuumProcessor_.getActivityName(),
-                activityTime: self.vacuumProcessor_.getActivityTime()
-            }
+            setTimeout(function() {
 
-            var extendedDataModifier = null;
+                var clickedEffortId = $(this).attr('data-segment-effort-id');
 
-            switch (activityType) {
-                case 'Ride':
-                    extendedDataModifier = new CyclingExtendedDataModifier(
-                        self.activityProcessor_,
-                        self.activityId_,
-                        activityType,
-                        self.appResources_,
-                        self.userSettings_,
-                        self.athleteId_,
-                        self.athleteIdAuthorOfActivity_,
-                        basicInfos,
-                        AbstractExtendedDataModifier.TYPE_SEGMENT);
-                    break;
-                case 'Run':
-                    extendedDataModifier = new RunningExtendedDataModifier(
-                        self.activityProcessor_,
-                        self.activityId_,
-                        activityType,
-                        self.appResources_,
-                        self.userSettings_,
-                        self.athleteId_,
-                        self.athleteIdAuthorOfActivity_,
-                        basicInfos,
-                        AbstractExtendedDataModifier.TYPE_SEGMENT);
-                    break;
-                default:
-                    break;
-            }
-            return r;
-        };
+                console.log('clicked effort ' + clickedEffortId);
+
+                var basicInfos = {
+                    activityName: self.vacuumProcessor_.getActivityName(),
+                    activityTime: self.vacuumProcessor_.getActivityTime()
+                }
+
+                var extendedDataModifier = null;
+
+                switch (activityType) {
+                    case 'Ride':
+                        extendedDataModifier = new CyclingExtendedDataModifier(
+                            self.activityProcessor_,
+                            self.activityId_,
+                            activityType,
+                            self.appResources_,
+                            self.userSettings_,
+                            self.athleteId_,
+                            self.athleteIdAuthorOfActivity_,
+                            basicInfos,
+                            AbstractExtendedDataModifier.TYPE_SEGMENT,
+                            clickedEffortId);
+                        break;
+                    case 'Run':
+                        extendedDataModifier = new RunningExtendedDataModifier(
+                            self.activityProcessor_,
+                            self.activityId_,
+                            activityType,
+                            self.appResources_,
+                            self.userSettings_,
+                            self.athleteId_,
+                            self.athleteIdAuthorOfActivity_,
+                            basicInfos,
+                            AbstractExtendedDataModifier.TYPE_SEGMENT,
+                            clickedEffortId);
+                        break;
+                    default:
+                        break;
+                }
+            }, 750);
+        });
+
+        var end = new Date().getTime();
+        var time = end - start;
+
+        console.debug('Execution time: ' + time / 1000);
+
+        // return r;
     },
 
     /**

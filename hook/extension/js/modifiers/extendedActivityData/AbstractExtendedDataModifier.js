@@ -16,7 +16,9 @@ var AbstractExtendedDataModifier = Fiber.extend(function(base) {
 
         segmentEffortButtonId: 'extendedStatsButtonSegment',
 
-        init: function(activityProcessor, activityId, activityType, appResources, userSettings, athleteId, athleteIdAuthorOfActivity, basicInfos, type) {
+        init: function(activityProcessor, activityId, activityType, appResources, userSettings, athleteId, athleteIdAuthorOfActivity, basicInfos, type, givenEffortId) {
+
+            console.log('AbstractExtendedDataModifier::init');
 
             this.activityProcessor_ = activityProcessor;
             this.activityId_ = activityId;
@@ -29,6 +31,7 @@ var AbstractExtendedDataModifier = Fiber.extend(function(base) {
             this.isAuthorOfViewedActivity = (this.athleteIdAuthorOfActivity_ == this.athleteId_);
             this.speedUnitsData = this.getSpeedUnitData();
             this.type = type;
+            this.givenEffortId = givenEffortId;
 
             if (_.isNull(this.type)) {
                 console.error('ExtendedDataModifier must be set');
@@ -130,39 +133,42 @@ var AbstractExtendedDataModifier = Fiber.extend(function(base) {
 
         placeExtendedStatsButtonSegment: function(buttonAdded, buttonId) { // Note: This method has been overriden in childs
 
-            $('#' + this.segmentEffortButtonId).click(function() {
+            console.debug('placeExtendedStatsButtonSegment, this.givenEffortId = ' + this.givenEffortId);
 
-                this.getSegmentInfos(function(segmentInfosResponse) {
+            this.getSegmentInfos(function(segmentInfosResponse) {
 
-                    // Call Activity Processor with bounds
-                    if (!segmentInfosResponse.start_index && segmentInfosResponse.end_index) {
-                        return;
-                    }
+                // Call Activity Processor with bounds
+                if (!segmentInfosResponse.start_index && segmentInfosResponse.end_index) {
+                    return;
+                }
 
-                    // Update basic Infos
-                    this.basicInfos.segmentEffort = {
-                        name: segmentInfosResponse.display_name,
-                        elapsedTimeSec: segmentInfosResponse.elapsed_time_raw
-                    };
+                // Update basic Infos
+                this.basicInfos.segmentEffort = {
+                    name: segmentInfosResponse.display_name,
+                    elapsedTimeSec: segmentInfosResponse.elapsed_time_raw
+                };
 
-                    this.activityProcessor_.getAnalysisData(
-                        this.activityId_,
-                        this.userSettings_.userGender,
-                        this.userSettings_.userRestHr,
-                        this.userSettings_.userMaxHr,
-                        this.userSettings_.userFTP,
+                this.activityProcessor_.getAnalysisData(
+                    this.activityId_,
+                    this.userSettings_.userGender,
+                    this.userSettings_.userRestHr,
+                    this.userSettings_.userMaxHr,
+                    this.userSettings_.userFTP,
 
-                        [segmentInfosResponse.start_index, segmentInfosResponse.end_index], // Bounds given, full activity requested
+                    [segmentInfosResponse.start_index, segmentInfosResponse.end_index], // Bounds given, full activity requested
 
-                        function(analysisData) { // Callback when analysis data has been computed
+                    function(analysisData) { // Callback when analysis data has been computed
 
-                            this.analysisData_ = analysisData;
+                        this.analysisData_ = analysisData;
+
+                        $('[data-xtd-seg-effort-stats]').click(function() {
+
                             this.renderViews();
                             this.showResultsAndRefeshGraphs();
 
                         }.bind(this));
 
-                }.bind(this));
+                    }.bind(this));
 
             }.bind(this));
 
@@ -171,7 +177,9 @@ var AbstractExtendedDataModifier = Fiber.extend(function(base) {
 
         getSegmentInfos: function(callback) {
 
-            var effortId = (window.location.pathname.split('/')[4] || window.location.hash.replace('#', '')) || false;
+            console.debug(' this.givenEffortId = ' + this.givenEffortId);
+
+            var effortId = this.givenEffortId || (window.location.pathname.split('/')[4] || window.location.hash.replace('#', '')) || false;
 
             if (!effortId) {
                 console.error('No effort id found');

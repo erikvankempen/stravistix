@@ -48,10 +48,16 @@ var CyclingExtendedDataModifier = AbstractExtendedDataModifier.extend(function(b
             htmlButton += '</a>';
             htmlButton += '</section>';
 
-            if ($('[data-xtd-seg-effort-stats]').length === 0)  {
+
+            console.debug('data-xtd-seg-effort-stats SIZE ' + $('[data-xtd-seg-effort-stats]').length);
+
+            if (!$('[data-xtd-seg-effort-stats]').length)  {
+                // setTimeout(function() {
                 $('.raceshape-btn').last().after(htmlButton).each(function() {
                     base.placeExtendedStatsButtonSegment.call(this, buttonAdded); // Super call
                 }.bind(this));
+
+                // }.bind(this), 250);
             }
         },
 
