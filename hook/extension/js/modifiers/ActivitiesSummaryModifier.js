@@ -62,18 +62,20 @@ ActivitiesSummaryModifier.prototype = {
 
         $("#interval-rides a[href='/athletes/" + currentAthlete.id + "'].athlete-name").each(function() {
             var $this = $(this),
-                $activityUrl = $this.prev(".entry-title").find("a[href^='/activities/']"),
-                url = "/athlete/training_activities/" + $activityUrl.attr("href").substr("/activities/".length),
-                icon = $this.closest("div.entity-details").find("div.app-icon"),
-                pace = icon.hasClass("icon-walk") || icon.hasClass("icon-run");
-            requests.push($.ajax({
-                url: url,
-                type: "GET",
-                dataType: "json",
-                context: {
-                    pace: pace
-                }
-            }));
+                $activityUrl = $this.prev(".entry-title").find("a[href^='/activities/']").each(function() {
+
+                    var url = "/athlete/training_activities/" + $(this).attr('href').substr("/activities/".length),
+                        icon = $this.closest("div.entity-details").find("div.app-icon"),
+                        pace = icon.hasClass("icon-walk") || icon.hasClass("icon-run");
+                    requests.push($.ajax({
+                        url: url,
+                        type: "GET",
+                        dataType: "json",
+                        context: {
+                            pace: pace
+                        }
+                    }));
+                }.bind(this));
         });
 
         $.when.apply(self, requests).done(function() {
