@@ -789,12 +789,27 @@ ActivityProcessor.prototype = {
             if (i > 0) {
 
                 // Compute average and normalized elevation
-                accumulatedElevation += altitudeArray[i];
+                durationInSeconds = (timeArray[i] - timeArray[i - 1]); // Getting deltaTime in seconds (current sample and previous one)
+                distance = distanceArray[i] - distanceArray[i - 1];
+
+                // average elevation over distance
+                accumulatedElevation += this.valueForSum_(altitudeArray[i], altitudeArray[i - 1], distance);
+                elevationSampleCount += distance;
+                elevationSamples.push(altitudeArray[i]);
+                elevationSamplesDistance.push(distance);
+
+/*
+                // accumulatedElevation += altitudeArray[i];
                 elevationSampleCount++;
                 elevationSamples.push(altitudeArray[i]);
 
-                durationInSeconds = (timeArray[i] - timeArray[i - 1]); // Getting deltaTime in seconds (current sample and previous one)
+                // durationInSeconds = (timeArray[i] - timeArray[i - 1]); // Getting deltaTime in seconds (current sample and previous one)
 
+                accumulatedDistance = distanceArray[i] - distanceArray[i - 1];
+
+                elevationSamplesDistance.push(accumulatedDistance);
+                ascentSpeedMeterPerHourDistance.push(accumulatedDistance);
+*/
                 var elevationZoneId = this.getZoneId(this.zones.elevation, altitudeArray[i]);
 
                 if (!_.isUndefined(elevationZoneId) && !_.isUndefined(elevationZones[elevationZoneId])) {
@@ -824,13 +839,12 @@ ActivityProcessor.prototype = {
                         ascentDurationInSeconds = 0; // reset for next loop
 
                         // Take time from 'ascentCountEverySample' last samples 
-                        for (j = 0; j < ascentCountEverySample; j++) {
-                            ascentDistanceInMeters += distanceArray[i - j] - distanceArray[i - j - 1];
-                        }
-
-                        accumulatedDistance += ascentDistanceInMeters;
-                        elevationSamplesDistance.push(accumulatedDistance);
-                        ascentSpeedMeterPerHourDistance.push(accumulatedDistance);
+                        // for (j = 0; j < ascentCountEverySample; j++) {
+                        //     ascentDistanceInMeters += distanceArray[i - j] - distanceArray[i - j - 1];
+                        // }
+                        // accumulatedDistance += ascentDistanceInMeters;
+                        // elevationSamplesDistance.push(accumulatedDistance);
+                        // ascentSpeedMeterPerHourDistance.push(accumulatedDistance);
                         ascentDistanceInMeters = 0; // reset for next loop
 
                     } else { // => Downnhill
@@ -886,6 +900,8 @@ ActivityProcessor.prototype = {
         };
 
         console.warn(r);
+
+        return r;
 
     },
     smoothAltitude_: function smoothAltitude(activityStream, stravaElevation) {
