@@ -16,7 +16,6 @@ ActivityProcessor.gradeDownHillLimit = -1.6;
 ActivityProcessor.gradeProfileFlatPercentageDetected = 60;
 ActivityProcessor.gradeProfileFlat = 'FLAT';
 ActivityProcessor.gradeProfileHilly = 'HILLY';
-ActivityProcessor.ascentSpeedGradeLimit = 0.03;
 
 
 /**
@@ -60,7 +59,7 @@ ActivityProcessor.prototype = {
         this.vacuumProcessor_.getActivityStream(function(activityStatsMap, activityStream, athleteWeight, hasPowerMeter) { // Get stream on page
 
             // Append altitude_smooth to fetched strava activity stream before compute analysis data on
-            activityStream.altitude_smooth = this.smoothAltitude_(activityStream, activityStatsMap.elevation);
+            // activityStream.altitude_smooth = this.smoothAltitude_(activityStream, activityStatsMap.elevation);
 
             // Slices array if activity bounds given. It's mainly used for segment effort extended stats
             if (bounds && bounds[0] && bounds[1]) {
@@ -174,7 +173,7 @@ ActivityProcessor.prototype = {
 
         // Avg grade
         // Q1/Q2/Q3 grade
-        var elevationData = this.elevationData_(activityStream, activityStatsMap);
+        var elevationData = this.elevationData_(activityStream.altitude, activityStream.grade_smooth, activityStream.velocity_smooth, activityStream.distance, activityStream.time);
 
         // Return an array with all that shit...
         return {
@@ -756,13 +755,9 @@ ActivityProcessor.prototype = {
     },
 
 
-    elevationData_: function(activityStream, activityStatsMap) {
-        var distanceArray = activityStream.distance;
-        var timeArray = activityStream.time;
-        var velocityArray = activityStream.velocity_smooth;
-        var altitudeArray = activityStream.altitude_smooth;
+    elevationData_: function(altitudeArray, gradeArray, velocityArray, distanceArray, timeArray) {
 
-        if (_.isEmpty(distanceArray) || _.isEmpty(timeArray) || _.isEmpty(velocityArray) || _.isEmpty(altitudeArray)) {
+        if (_.isEmpty(altitudeArray) || _.isEmpty(gradeArray) || _.isEmpty(velocityArray) || _.isEmpty(distanceArray) || _.isEmpty(timeArray)) {
             return null;
         }
 
@@ -772,6 +767,7 @@ ActivityProcessor.prototype = {
         var accumulatedDistance = 0;
 
         // specials arrays for ascent speeds
+        var ascentCountEverySample = 10;
         var ascentSpeedMeterPerHourSamples = [];
         var ascentSpeedMeterPerHourDistance = [];
         var ascentSpeedMeterPerHourTime = [];
@@ -785,22 +781,19 @@ ActivityProcessor.prototype = {
         var durationInSeconds = 0;
         var distance = 0;
         var ascentDurationInSeconds = 0;
+        var ascentDistanceInMeters = 0;
 
         for (var i = 0; i < altitudeArray.length; i++) { // Loop on samples
 
             // Compute distribution for graph/table
-            if (i > 0 && velocityArray[i] * 3.6 > ActivityProcessor.movingThresholdKph) {
+            if (i > 0) {
+
+                // Compute average and normalized elevation
+                accumulatedElevation += altitudeArray[i];
+                elevationSampleCount++;
+                elevationSamples.push(altitudeArray[i]);
 
                 durationInSeconds = (timeArray[i] - timeArray[i - 1]); // Getting deltaTime in seconds (current sample and previous one)
-                distance = distanceArray[i] - distanceArray[i - 1];
-
-                // Compute average and normalized 
-
-                // average elevation over distance
-                accumulatedElevation += this.valueForSum_(altitudeArray[i], altitudeArray[i - 1], distance);
-                elevationSampleCount += distance;
-                elevationSamples.push(altitudeArray[i]);
-                elevationSamplesDistance.push(distance);
 
                 var elevationZoneId = this.getZoneId(this.zones.elevation, altitudeArray[i]);
 
@@ -808,30 +801,44 @@ ActivityProcessor.prototype = {
                     elevationZones[elevationZoneId]['s'] += durationInSeconds;
                 }
 
-                // Meters climbed between current and previous
-                var elevationDiff = altitudeArray[i] - altitudeArray[i - 1];
+                // Compute elevation diff each ascentCountEverySample
+                if ((i % ascentCountEverySample) == 0) {
 
-                // If previous altitude lower than current then => climbing
-                if (elevationDiff > 0) {
+                    // Meters climbed between current and sample at ascentCountEverySample position lower.
+                    var elevationDiff = altitudeArray[i] - altitudeArray[i - ascentCountEverySample];
 
-                    accumulatedElevationAscent += elevationDiff;
-                    ascentDurationInSeconds = timeArray[i] - timeArray[i - 1];
+                    // If previous altitude lower than current then => climbing
+                    if (elevationDiff > 0) {
 
-                    var ascentSpeedMeterPerHour = elevationDiff / ascentDurationInSeconds * 3600; // m climbed / seconds
+                        // Take time from 'ascentCountEverySample' last samples 
+                        for (j = 0; j < ascentCountEverySample; j++) {
+                            ascentDurationInSeconds += timeArray[i - j] - timeArray[i - j - 1];
+                        }
 
-                    // only if grade is > 3%
-                    if (distance > 0 && (elevationDiff / distance) > ActivityProcessor.ascentSpeedGradeLimit) {
-                        accumulatedDistance += distanceArray[i] - distanceArray[i - 1];
+                        accumulatedElevationAscent += elevationDiff;
+                        var ascentSpeedMeterPerHour = elevationDiff / ascentDurationInSeconds * 3600; // m climbed / seconds
+
                         ascentSpeedMeterPerHourSamples.push(ascentSpeedMeterPerHour);
-                        ascentSpeedMeterPerHourDistance.push(accumulatedDistance);
-                        ascentSpeedMeterPerHourTime.push(ascentDurationInSeconds);
                         ascentSpeedMeterPerHourSum += ascentSpeedMeterPerHour;
-                    }
-                } else {
-                    accumulatedElevationDescent -= elevationDiff;
-                }
+                        ascentSpeedMeterPerHourTime.push(ascentDurationInSeconds);
+                        ascentDurationInSeconds = 0; // reset for next loop
 
+                        // Take time from 'ascentCountEverySample' last samples 
+                        for (j = 0; j < ascentCountEverySample; j++) {
+                            ascentDistanceInMeters += distanceArray[i - j] - distanceArray[i - j - 1];
+                        }
+
+                        accumulatedDistance += ascentDistanceInMeters;
+                        elevationSamplesDistance.push(accumulatedDistance);
+                        ascentSpeedMeterPerHourDistance.push(accumulatedDistance);
+                        ascentDistanceInMeters = 0; // reset for next loop
+
+                    } else { // => Downnhill
+                        accumulatedElevationDescent -= elevationDiff;
+                    }
+                }
             }
+
         }
 
         var ascentSpeedArray = ascentSpeedMeterPerHourSamples; //this.filterData_(ascentSpeedMeterPerHourSamples, ascentSpeedMeterPerHourDistance, 200);
@@ -861,7 +868,7 @@ ActivityProcessor.prototype = {
         var percentilesElevation = Helper.weightedPercentiles(elevationSamples, elevationSamplesDistance, [0.25, 0.5, 0.75]);
         var percentilesAscent = Helper.weightedPercentiles(ascentSpeedMeterPerHourSamples, ascentSpeedMeterPerHourDistance, [0.25, 0.5, 0.75]);
 
-        return {
+        var r = {
             'avgElevation': avgElevation.toFixed(0),
             'accumulatedElevationAscent': accumulatedElevationAscent,
             'accumulatedElevationDescent': accumulatedElevationDescent,
@@ -877,8 +884,10 @@ ActivityProcessor.prototype = {
                 'upperQuartile': percentilesAscent[2].toFixed(0)
             }
         };
-    },
 
+        console.warn(r);
+
+    },
     smoothAltitude_: function smoothAltitude(activityStream, stravaElevation) {
 
         if (!activityStream.altitude) {
