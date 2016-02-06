@@ -79,7 +79,7 @@ var AbstractExtendedDataModifier = Fiber.extend(function(base) {
 
         placeSummaryPanel: function(panelAdded) {
 
-            this.makeSummaryGrid(2, 4);
+            this.makeSummaryGrid(2, 5);
 
             this.insertContentSummaryGridContent();
 
@@ -283,6 +283,15 @@ var AbstractExtendedDataModifier = Fiber.extend(function(base) {
             }
 
             this.insertContentAtGridPosition(0, 2, climbTime, 'Time climbing', climbTimeExtra, 'displayAdvancedGradeData');
+
+            var ATL = '-';
+            var CTL = '-';
+            if (this.analysisData_.heartRateData && this.userSettings_.displayAdvancedHrData) {
+                ATL = 'N/A'
+                CTL = 'N/A'
+            }
+            this.insertContentAtGridPosition(0,4, ATL, 'Acute Training Load', '', 'displayAdvancedHrData')
+            this.insertContentAtGridPosition(1,4, CTL, 'Chronic Training Load', '', 'displayAdvancedHrData')
 
         },
 
